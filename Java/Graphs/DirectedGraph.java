@@ -47,6 +47,23 @@ public class DirectedGraph {
 	private boolean DEBUG = false;
 	private Node nodes[];
 	
+	/**
+	 * Resets the visited flag for all the nodes.
+	 */
+	public void resetVisited(){
+		for(Node n: nodes){
+			n.clearVisit();
+		}
+	}
+	
+	/**
+	 * A way to access a node used primarily for beginning a search.
+	 * 
+	 * TODO make this more robust and allow selection of node.
+	 * 
+	 * 
+	 * @return Node 0
+	 */
 	public Node getFirstNode(){
 		return nodes[0];
 	}

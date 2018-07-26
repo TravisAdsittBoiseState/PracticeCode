@@ -34,6 +34,13 @@ public class Node {
 	}
 	
 	/**
+	 * Clears the visited flag used by search algorithms.
+	 */
+	public void clearVisit(){
+		visited = false;
+	}
+	
+	/**
 	 * 
 	 * Function to add an edge to the node.
 	 * 
@@ -47,10 +54,18 @@ public class Node {
 		this.edges[numEdges++] = edge;
 	}
 	
+	/**
+	 * Sets the visited flag used by search algorithms.
+	 */
 	public void visit(){
 		visited = true;
 	}
 	
+	/**
+	 * Returns whether or not this node has been visited, used by search
+	 *  algorithms.
+	 * @return
+	 */
 	public boolean visited(){
 		return visited;
 	}
@@ -74,6 +89,12 @@ public class Node {
 		edges = newEdgeArray;
 	}
 	
+	/**
+	 * 
+	 * Returns the edges, and betrays our private edges...
+	 * 
+	 * @return Edge[] protruding from the node
+	 */
 	public Edge[] getEdges(){
 		return edges;
 	}

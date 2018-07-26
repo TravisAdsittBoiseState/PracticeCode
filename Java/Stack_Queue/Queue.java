@@ -36,6 +36,15 @@ public class Queue<T> {
 	}
 	
 	/**
+	 * Returns whether or not the queue is empty.
+	 * 
+	 * @return boolean empty
+	 */
+	public boolean isEmpty(){
+		return length == 0;
+	}
+	
+	/**
 	 * 
 	 * A method to dequeue and item
 	 * 
