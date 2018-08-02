@@ -9,6 +9,9 @@
 
 char decodeRegister(unsigned char op,int loc);
 int numBytes(char *Buffer,int PC);
+char decodeCon(unsigned char op);
+char decodeRP(unsigned char op, int offset);
+
 
 int main(int argc, char**argv){
 
@@ -53,6 +56,8 @@ int numBytes(char *Buffer,int PC){
 
 	int numBytes = 1;
 	unsigned char* instruction = &Buffer[PC];
+	
+	printf("%04x\t",PC);
 
 	switch(*instruction){
 
@@ -79,7 +84,7 @@ int numBytes(char *Buffer,int PC){
                 case 0x71:
                 case 0x77:
 			//MOV ADDR (H and L), r
-			printf("MOV ADDR, %c\n",decodeRegister(*instruction,2));
+			printf("MOV ADDR, %c\n",decodeRegister(*instruction,1));
 			break;
                 case 0x66:
                 case 0x7e:
@@ -97,38 +102,38 @@ int numBytes(char *Buffer,int PC){
                 case 0x01:
                 case 0x11:
 			//LXI rp, data
-			printf("LXI rp, %#04x\n",((instruction[2] << 4) | instruction[1]));
+			printf("LXI %c, %#04x\n",decodeRP(*instruction, 4),((instruction[2] << 8) | instruction[1]));
 			numBytes = 3;
 			break;
 		case 0x3a:
 			//LDA addr
-			printf("LDA A, %#04x\n",((instruction[2] << 4) | instruction[1]));
+			printf("LDA A, %#04x\n",((instruction[2] << 8) | instruction[1]));
 			numBytes = 3;
 			break;
 		case 0x32:
 			//STA addr
-			printf("STA %#04x, A\n",((instruction[2] << 4) | instruction[1]));
+			printf("STA %#04x, A\n",((instruction[2] << 8) | instruction[1]));
 			numBytes = 3;
 			break;
 		case 0x2a:
 			//LHLD addr
-			printf("LHDL L, %#04x, H, %#04x\n",((instruction[2] << 4) | instruction[1]), ((instruction[2] << 4) | instruction[1]) + 1);
+			printf("LHDL L, %#04x, H, %#04x\n",((instruction[2] << 8) | instruction[1]), ((instruction[2] << 8) | instruction[1]) + 1);
 			numBytes = 3;
 			break;
 		case 0x22:
 			//SHLD addr
-			printf("SHDL %#04x, L, %#04x, H\n",((instruction[2] << 4) | instruction[1]), ((instruction[2] << 4) | instruction[1]) + 1);
+			printf("SHDL %#04x, L, %#04x, H\n",((instruction[2] << 8) | instruction[1]), ((instruction[2] << 8) | instruction[1]) + 1);
 			numBytes = 3;
 			break;
                 case 0x1a:
                 case 0x0a:
 			//LDAX rp
-			printf("LDAX rp\n");
+			printf("LDAX %c\n",decodeRP(*instruction,4));
 			break;
                 case 0x12:
                 case 0x02:
 			//STAX rp
-			printf("STAX rp\n");
+			printf("STAX %c\n",decodeRP(*instruction,4));
 			break;
 		case 0xeb:
 			//XCHG HL and DE
@@ -148,7 +153,7 @@ int numBytes(char *Buffer,int PC){
 			//ADD M
 			//The content of the memory at the HL address is added to the
 			//accumulator (register A).
-			printf("ADD M");
+			printf("ADD M\n");
 			break;
 		case 0xc6:
 			//ADI data
@@ -249,14 +254,14 @@ int numBytes(char *Buffer,int PC){
                 case 0x33:
 			//INX rp
 			//Increment the register pairs lower by one
-			printf("INX rp\n");
+			printf("INX %c\n",decodeRP(*instruction,4));
 			break;
                 case 0x1b:
                 case 0x0b:
                 case 0x3b:
                 case 0x2b:
 			//DCX rp
-			printf("DCX rp\n");
+			printf("DCX %c\n",decodeRP(*instruction,4));
 			break;
                 case 0x09:
                 case 0x39:
@@ -264,7 +269,7 @@ int numBytes(char *Buffer,int PC){
                 case 0x19:
 			//DAD rp
 			//Adds the register pair to the H and L registers
-			printf("DAD rp\n");
+			printf("DAD %c\n",decodeRP(*instruction,4));
 			break;
 		case 0x27:
 			//DAA
@@ -364,7 +369,142 @@ int numBytes(char *Buffer,int PC){
 			//CMA
 			printf("CMA\n");
 			break;
-		
+		case 0x3f:
+			//CMC
+			printf("CMC\n");
+			break;
+		case 0x37:
+			//STC
+			printf("STC\n");
+			break;	
+		case 0x36:
+			//MVI ADDR (H and L), r 
+			printf("MVI M, %#02x\n",instruction[1]);
+			numBytes = 2;
+			break;
+		case 0xc3:
+			//JMP
+			printf("JMP %#04x\n",((instruction[2] << 8) | instruction[1]));
+			numBytes = 3;
+			break;
+                case 0xda:
+                case 0xe2:
+                case 0xea:
+                case 0xf2:
+                case 0xc2:
+                case 0xd2:
+                case 0xfa:
+                case 0xca:
+			//JMPCON
+			printf("JMPCON %c %#04x\n",decodeCon(*instruction),((instruction[2] << 8) | instruction[1]));
+			numBytes = 3;
+			break;
+		case 0xcd:
+			//CALL addr
+			printf("CALL %#04x\n",instruction[2] << 8 | instruction[1]);
+			numBytes = 3;
+			break;
+                case 0xd4:
+                case 0xec:
+                case 0xfc:
+                case 0xdc:
+                case 0xcc:
+                case 0xc4:
+                case 0xe4:
+                case 0xf4:
+			//Ccondition addr
+			//It seems this pushes the PC onto the stack and places
+			//the address of the following bytes into the PC if the
+			//condition is true.
+			printf("CONCALL %c, %#04x\n",decodeCon(*instruction),instruction[2] << 8 | instruction[1]);
+			numBytes = 3;
+			break;
+		case 0xc9:
+			//RET
+			//Pulls an address off the stack and puts it in the PC
+			printf("RET\n");
+			break;
+                case 0xe8:
+                case 0xf8:
+                case 0xd8:
+                case 0xf0:
+                case 0xc8:
+                case 0xe0:
+                case 0xc0:
+                case 0xd0:
+			//Rcondition
+			printf("RCON %c\n",decodeCon(*instruction));
+			break;
+                case 0xef:
+                case 0xf7:
+                case 0xe7:
+                case 0xdf:
+                case 0xc7:
+                case 0xd7:
+                case 0xff:
+                case 0xcf:
+			//RST
+			//This function takes the current PC address and puts
+			//it on the stack, then takes the NNN of the opcode
+			//
+			//   11NNN111
+			//
+			//multiplies it by 8 and puts that into the PC. I 
+			//had no idea this is what a soft reset did... seems
+			//like its not much of a reset at all....
+			printf("RST %#02x\n",((*instruction >> 3) & ~(3 << 3)));
+			break;
+		case 0xe9:
+			printf("PCHL\n");
+			break;
+                case 0xe5:
+                case 0xd5:
+                case 0xc5:
+			//PUSH rp
+			printf("PUSH %c %d\n",decodeRP(*instruction,4),(*instruction >> 4) & 3);
+			break;
+		case 0xf5:
+			//PUSH PSW
+			printf("PUSH PSW\n");
+			break;
+                case 0xc1:
+                case 0xd1:
+                case 0xe1:
+			//POP rp
+			printf("POP %c %d\n",decodeRP(*instruction,4),(*instruction >> 4) & 3);
+			break;
+		case 0xf1:
+			//POP PSW
+			printf("POP PSW\n");
+			break;
+		case 0xe3:
+			//XTHL Exchange stack top with H and L
+			printf("XTHL\n");
+			break;
+		case 0xf9:
+			//SPHL Stack fills H and L
+			printf("SPHL\n");
+			break; 
+		case 0xdb:
+			//IN port
+			printf("READ INPUT\n");
+			break;
+		case 0xd3:
+			//OUT port
+			printf("SEND OUTPUT\n");
+			break;
+		case 0xfb:
+			//ENABLE INTERUPTS
+			printf("ENABLE INTERUPTS\n");
+			break;
+		case 0xf3:
+			//DISABLE INTERUPTS
+			printf("DISABLE INTERUPTS\n");
+			break;
+		case 0x76:
+			//HALT
+			printf("HALT");
+			break;
                 case 0x5b:
                 case 0x5a:
                 case 0x59:
@@ -417,15 +557,9 @@ int numBytes(char *Buffer,int PC){
 			//MOV r1, r2
 			printf("MOV %c, %c\n",decodeRegister(*instruction,2),decodeRegister(*instruction,1));
 			break;
-		case 0x36:
-			//MVI ADDR (H and L), r 
-			numBytes = 2;
+		default:
+			printf("\n");
 			break;
-		case 0xc3:
-			//JMP
-			numBytes = 3;
-			break;
-
 	}
 
 	return numBytes;
@@ -434,6 +568,34 @@ int numBytes(char *Buffer,int PC){
 
 }
 
+/*
+ * This is a helper function to decode the register pair in a 
+ * opcode, makes the assembly more readable for reverse engineering.
+ */
+char decodeRP(unsigned char op, int offset){
+
+	unsigned char retVal = (op >> offset) & 3;
+
+	switch(retVal){
+
+		case 0:
+			retVal = 'B';
+			break;
+		case 1:
+			retVal = 'D';
+			break;
+		case 2:
+			retVal = 'H';
+			break;
+		case 3:
+			retVal = 'S';
+			break;
+
+	} 
+
+	return retVal;
+
+}
 
 /*
  * This is a function to help with the disassembly by allowing for smaller
@@ -488,4 +650,40 @@ char decodeRegister(unsigned char op,int loc){
 
 }
 
+/*
+ * This is a helper function to decode the conditional that a jump
+ * statement is looking for.
+ *
+ */
+char decodeCon(unsigned char op){
 
+	unsigned char retVal = 0x08;
+	unsigned char mask = 0x07 << 3;
+
+	retVal = (op & mask) >> 3;
+
+	switch(retVal){
+
+		case 0x00:
+		case 0x01:
+			retVal = 'Z';
+			break;
+		case 0x02:
+		case 0x03:
+			retVal = 'C';
+			break;
+		case 0x04:
+		case 0x05:
+			retVal = 'P';
+			break;
+		case 0x06:
+		case 0x07:
+			retVal = 'S';
+			break;
+		case 0x08:
+			retVal = 'E';
+			break;
+	}
+
+	return retVal;
+}
