@@ -57,6 +57,8 @@ typedef struct op_def
   unsigned char byte2;
 } op;
 
+enum REG{B,C,D,E,H,L,A = 7};
+
 void loadProgram (char *filename, char *memSpace);
 op *fetch (unsigned int PC);
 
@@ -244,11 +246,62 @@ MOV(op* operation){
 
 }
 
+void
+LXI(op* operation){
+
+	unsigned char rp = (operation->op >> 4) & 3;
+
+	switch(rp){
+
+		case 0x00:
+			CPUINFO.B = operation->byte2;
+			CPUINFO.C = operation->byte1;
+		case 0x01:
+			CPUINFO.D = operation->byte2;
+			CPUINFO.E = operation->byte1;
+		case 0x02:
+			CPUINFO.H = operation->byte2;
+			CPUINFO.L = operation->byte1;
+		case 0x03:
+			CPUINFO.SP = (operation->byte2 << 4) | operation->byte1;
+	}
+
+}
+
+void
+AX(op* operation){
+
+	unsigned char op = operation->op & 0x0f;
+	unsigned char rp = (operation->op >> 4) & 3;
+	unsigned int loc;
+
+	switch(rp){
+		case 0x00:
+			loc = CPUINFO.B << 4 | CPUINFO.C;
+			break;
+		case 0x01:
+			loc = CPUINFO.D << 4 | CPUINFO.E;
+			break;
+	}
+
+	switch(op){
+		case 0x0a:
+			//LDAX
+			loadRegister(A,MEM(loc));
+			break;
+		case 0x02:
+			//STAX
+			loadMemory(A,loc);
+			break;
+	}
+
+}
+
 
 int
 decode_execute (op * operation)
 {
-
+  unsigned int loc;
 
   switch (operation->op)
     {
@@ -257,43 +310,69 @@ decode_execute (op * operation)
       //NOP
       CPUINFO.PC++;
       break;
+    case 0x26:
+      //This is a special case for move immediate operation.....
+      memory[CPUINFO.H << 4 | CPUINFO.L] = operation->byte1;
     case 0x1e:
     case 0x3e:
-    case 0x26:
     case 0x0e:
     case 0x2e:
     case 0x06:
     case 0x16:
       //MVI r, data
+      loadRegister((operation->op >> 3) & 7, operation->byte1);
+      CPUINFO.PC+=2;
       break;
     case 0x31:
     case 0x21:
     case 0x01:
     case 0x11:
       //LXI rp, data
+      LXI(operation);
+      CPUINFO.PC+=3;
       break;
     case 0x3a:
       //LDA addr
+      loc = operation->byte2 << 4 | operation->byte1;
+      loadRegister(0x03,MEM(loc));
+      CPUINFO.PC+=3;
       break;
     case 0x32:
       //STA addr
+      loc = operation->byte2 << 4 | operation->byte1;
+      loadMemory(0x03,loc);
+      CPUINFO.PC+=3;
       break;
     case 0x2a:
       //LHLD addr
+      loc = operation->byte2 << 4 | operation->byte1;
+      CPUINFO.H = MEM(loc + 1);
+      CPUINFO.L = MEM(loc);
+      CPUINFO.PC+=3;
       break;
     case 0x22:
       //SHLD addr
+      loc = operation->byte2 << 4 | operation->byte1;
+      loadMemory(H, loc);
+      CPUINFO.PC+=3;
       break;
     case 0x1a:
     case 0x0a:
-      //LDAX rp
-      break;
     case 0x12:
     case 0x02:
-      //STAX rp
+      //AX rp
+      AX(operation);
       break;
     case 0xeb:
       //XCHG HL and DE
+      //Abusing loc as a temp variable here.
+      loc = CPUINFO.H;
+      CPUINFO.H = CPUINFO.D;
+      CPUINFO.D = loc;
+
+      loc = CPUINFO.L;
+      CPUINFO.L = CPUINFO.E;
+      CPUINFO.E = loc;
       break;
     case 0x82:
     case 0x87:
@@ -303,6 +382,7 @@ decode_execute (op * operation)
     case 0x84:
     case 0x80:
       //ADD r
+
       break;
     case 0x86:
       //ADD M
@@ -653,6 +733,7 @@ decode_execute (op * operation)
     case 0x56:
     case 0x46:
     case 0x5e:
+      CPUINFO.PC++;
       MOV(operation);
       break;
     }
