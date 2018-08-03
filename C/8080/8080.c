@@ -23,7 +23,7 @@
  * 2AUGG18
  */
 
-#define MAX_MEM_LOC 65536
+#define MAX_MEM_LOC 0xffff
 
 
 
@@ -59,10 +59,10 @@ typedef struct op_def
 
 enum REG{B,C,D,E,H,L,A = 7};
 
-void loadProgram (char *filename, char *memSpace);
+void loadProgram (char *filename, char **memSpace);
 op *fetch (unsigned int PC);
 
-char *memory;
+unsigned char *memory;
 
 int
 main (int argc, char **arggv)
@@ -70,20 +70,39 @@ main (int argc, char **arggv)
 
   //Allocate maximum memory possible for 8080 Processor due to its
   //16 bit addressing.
-  memory = malloc (sizeof (char) * MAX_MEM_LOC);
+  memory = malloc (sizeof(unsigned char) * MAX_MEM_LOC);
 
-  if (argc > !1)
+  if (argc < 1)
     {
       printf ("No file specified!");
       exit (1);
     }
 
-  loadProgram (arggv[1], memory);
+  //loadProgram (arggv[1], &memory);
+  FILE *f = fopen(arggv[1], "rb");
+	
+	if(f == NULL){
+		printf("Couldn't open the file specified!\n");
+		exit(1);
+	}
+	
+	fseek(f,0L,SEEK_END);
+
+	int size = ftell(f);
+	
+	fseek(f,0,SEEK_SET);
+
+	fread(memory,size,1,f);
+
+	fclose(f);
+
+
+
 
   while (1)
     {
-
-      decode_execute (fetch (CPUINFO.PC));
+      op* operation = fetch (CPUINFO.PC);
+      decode_execute (operation);
 
     }
 
@@ -96,7 +115,7 @@ main (int argc, char **arggv)
  * for the processor to start using.
  */
 void
-loadProgram (char *filename, char *memSpace)
+loadProgram (char *filename, char **memSpace)
 {
 
   FILE *f = fopen (filename, "rb");
@@ -108,10 +127,13 @@ loadProgram (char *filename, char *memSpace)
     }
 
   fseek (f, 0L, SEEK_END);
-
+  
   int size = ftell (f);
+  
+  rewind(f);
 
-  fread (memSpace, size, 1, f);
+
+  fread (*memSpace, size, 1, f);
 
   fclose (f);
 
@@ -198,6 +220,57 @@ regVal(unsigned char reg){
 			return CPUINFO.H;
 		case 0x05:
 			return CPUINFO.L;
+	}
+
+
+}
+
+unsigned int
+regPairVal(unsigned char rp)
+{
+
+	unsigned int retVal;
+
+	switch(rp){
+		case 0x00:
+			retVal = CPUINFO.B << 4 | CPUINFO.C;
+			break;
+		case 0x01:
+			retVal = CPUINFO.D << 4 | CPUINFO.E;
+			break;
+		case 0x02:
+			retVal = CPUINFO.H << 4 | CPUINFO.L;
+			break;
+		case 0x03:
+			retVal = CPUINFO.SP;
+			break;
+	}
+
+	return retVal;
+}
+
+void 
+loadRegPair(unsigned char rp, unsigned int val){
+
+	unsigned char high = val >> 4;
+	unsigned char low = val & 0x0f;
+
+	switch(rp){
+		case 0x00:
+			CPUINFO.B = high;
+			CPUINFO.C = low;
+			break;
+		case 0x01:
+			CPUINFO.D = high;
+			CPUINFO.E = low;
+			break;
+		case 0x02:
+			CPUINFO.H = high;
+			CPUINFO.L = low;
+			break;
+		case 0x03:
+			CPUINFO.SP = val;
+			break;
 	}
 
 
@@ -297,7 +370,6 @@ AX(op* operation){
 
 }
 
-
 int
 decode_execute (op * operation)
 {
@@ -362,6 +434,7 @@ decode_execute (op * operation)
     case 0x02:
       //AX rp
       AX(operation);
+      CPUINFO.PC++;
       break;
     case 0xeb:
       //XCHG HL and DE
@@ -373,6 +446,7 @@ decode_execute (op * operation)
       loc = CPUINFO.L;
       CPUINFO.L = CPUINFO.E;
       CPUINFO.E = loc;
+      CPUINFO.PC++;
       break;
     case 0x82:
     case 0x87:
@@ -382,15 +456,21 @@ decode_execute (op * operation)
     case 0x84:
     case 0x80:
       //ADD r
-
+      CPUINFO.A += regVal(operation->op & 7); 
+      CPUINFO.PC++;
       break;
     case 0x86:
       //ADD M
+      loc = CPUINFO.H << 4 | CPUINFO.L;
+      CPUINFO.A += MEM(loc);
+      CPUINFO.PC++;
       //The content of the memory at the HL address is added to the
       //accumulator (register A).
       break;
     case 0xc6:
       //ADI data
+      CPUINFO.A += operation->byte1;
+      CPUINFO.PC+=2;
       break;
     case 0x8a:
     case 0x8b:
@@ -401,14 +481,21 @@ decode_execute (op * operation)
     case 0x8c:
       //ADC r
       //register A + r + Carry Bit
+      CPUINFO.A += regVal(operation->op & 7) + CPUINFO.CY;
+      CPUINFO.PC++;
       break;
     case 0x8e:
       //ADC M
       //register A + M(HL) + Carry Bit
+      loc = CPUINFO.H << 4 | CPUINFO.L;
+      CPUINFO.A += MEM(loc) + CPUINFO.CY;
+      CPUINFO.PC++;
       break;
     case 0xce:
       //ACI data
       //register A + (byte 2) + CY flag
+      CPUINFO.A += operation->byte1 + CPUINFO.CY;
+      CPUINFO.PC+=2;
       break;
     case 0x92:
     case 0x90:
@@ -418,12 +505,19 @@ decode_execute (op * operation)
     case 0x91:
     case 0x95:
       //SUB r
+      CPUINFO.A -= regVal(operation->op & 7);
+      CPUINFO.PC++;
       break;
     case 0x96:
       //SUB M
+      loc = CPUINFO.H << 4 | CPUINFO.L;
+      CPUINFO.A -= MEM(loc);
+      CPUINFO.PC++;
       break;
     case 0xd6:
       //SUI data
+      CPUINFO.A -= operation->byte1;
+      CPUINFO.PC+=2;
       break;
     case 0x9f:
     case 0x9c:
@@ -433,12 +527,19 @@ decode_execute (op * operation)
     case 0x99:
     case 0x98:
       //SBB r
+      CPUINFO.A -= regVal(operation->op & 7) - CPUINFO.CY;
+      CPUINFO.PC++;
       break;
     case 0x9e:
       //SBB M
+      loc = CPUINFO.H << 4 | CPUINFO.L;
+      CPUINFO.A -= MEM(loc) - CPUINFO.CY;
+      CPUINFO.PC++;
       break;
     case 0xde:
       //SBI data
+      CPUINFO.A -= operation->byte1;
+      CPUINFO.PC+=2;
       break;
     case 0x1c:
     case 0x14:
@@ -448,9 +549,15 @@ decode_execute (op * operation)
     case 0x24:
     case 0x2c:
       //INR r
+      loc = operation->op >> 3 & 7;
+      loadRegister(loc,regVal(loc) + 1);
+      CPUINFO.PC++;
       break;
     case 0x34:
       //INR M
+      loc = CPUINFO.H << 4 | CPUINFO.L;
+      memory[loc]++;
+      CPUINFO.PC++;
       break;
     case 0x05:
     case 0x25:
@@ -460,9 +567,15 @@ decode_execute (op * operation)
     case 0x1d:
     case 0x15:
       //DCR r
+      loc = operation->op >> 3 & 7;
+      loadRegister(loc,regVal(loc) - 1);
+      CPUINFO.PC++;
       break;
     case 0x35:
       //DCR M
+      loc = CPUINFO.H << 4 | CPUINFO.L;
+      memory[loc]--;
+      CPUINFO.PC++;
       break;
     case 0x03:
     case 0x23:
@@ -470,12 +583,18 @@ decode_execute (op * operation)
     case 0x33:
       //INX rp
       //Increment the register pairs lower by one
+      loc = operation->op >> 4 & 3;
+      loadRegPair(loc,regPairVal(loc) + 1);
+      CPUINFO.PC++;
       break;
     case 0x1b:
     case 0x0b:
     case 0x3b:
     case 0x2b:
       //DCX rp
+      loc = operation->op >> 4 & 3;
+      loadRegPair(loc,regPairVal(loc) - 1);
+      CPUINFO.PC++;
       break;
     case 0x09:
     case 0x39:
@@ -483,11 +602,28 @@ decode_execute (op * operation)
     case 0x19:
       //DAD rp
       //Adds the register pair to the H and L registers
+      loc = regPairVal(operation->op >> 4 & 3);
+      loc += regPairVal(H);
+      loadRegPair(H,loc);
+      CPUINFO.PC++;
       break;
     case 0x27:
       //DAA
       //Forms two four bit Binary Coded Decimal digits from the
       //Accumulator (Register A)
+      if((CPUINFO.A & 0x0f > 9) || CPUINFO.AC){
+
+	CPUINFO.A += 6;
+
+      }
+      if((CPUINFO.A & 0xf0 >> 4 > 9) || CPUINFO.CY){
+
+	loc = CPUINFO.A >> 4 & 0x0f;
+	loc += 6;
+	CPUINFO.A = (loc << 4) | (CPUINFO.A & 0x0f);
+
+      }
+      CPUINFO.PC++;
       break;
     case 0xa7:
     case 0xa5:
@@ -497,12 +633,18 @@ decode_execute (op * operation)
     case 0xa3:
     case 0xa2:
       //ANA r
+      CPUINFO.A = CPUINFO.A & regVal(operation->op & 7);
+      CPUINFO.PC++;
       break;
     case 0xa6:
       //ANA M
+      CPUINFO.A = CPUINFO.A & MEM(regPairVal(H));
+      CPUINFO.PC++;
       break;
     case 0xe6:
       //ANI data
+      CPUINFO.A = CPUINFO.A & operation->byte1;
+      CPUINFO.PC+=2;
       break;
     case 0xac:
     case 0xad:
@@ -512,12 +654,18 @@ decode_execute (op * operation)
     case 0xab:
     case 0xa9:
       //XRA r
+      CPUINFO.A = CPUINFO.A ^ regVal(operation->op & 7);
+      CPUINFO.PC++;
       break;
     case 0xae:
       //XRA M
+      CPUINFO.A = CPUINFO.A ^ MEM(regPairVal(H));
+      CPUINFO.PC++;
       break;
     case 0xee:
       //XRI data
+      CPUINFO.A = CPUINFO.A ^ operation->byte1;
+      CPUINFO.PC+=2;
       break;
     case 0xb1:
     case 0xb0:
@@ -527,9 +675,18 @@ decode_execute (op * operation)
     case 0xb2:
     case 0xb5:
       //ORA r
+      CPUINFO.A = CPUINFO.A | regVal(operation->op & 7);
+      CPUINFO.PC++;
+      break;
+    case 0xb6:
+      //ORA M
+      CPUINFO.A = CPUINFO.A | MEM(regPairVal(H));
+      CPUINFO.PC++;
       break;
     case 0xf6:
       //ORI data
+      CPUINFO.A = CPUINFO.A | operation->byte1;
+      CPUINFO.PC+=2;
       break;
     case 0xbc:
     case 0xbb:
