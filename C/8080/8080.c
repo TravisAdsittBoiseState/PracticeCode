@@ -370,6 +370,54 @@ AX(op* operation){
 
 }
 
+unsigned char
+addReg(unsigned char reg, int val){
+
+	//We look at the 6th bit to see if it was carried into the 7th bit
+	//after addition.
+	int carry = (reg >> 6) & 0x01;
+	int carryA;
+
+	int auxC = (reg >> 2) & 0x01;
+	int auxCA;
+	
+
+	int retVal;
+
+	retVal = reg + val;
+
+	carryA = (retVal >> 6) & 0x01;	
+	auxCA = (retVal >> 2) & 0x01;
+
+	if(carry > carryA){
+		CPUINFO.CY = 1; //Not sure if I should correct the bit
+				//or not...
+	}else{
+		CPUINFO.CY = 0;
+	}
+	if(auxC > auxCA){
+
+		CPUINFO.AC = 1;
+
+	}else{
+		CPUINFO.AC = 0;
+	}
+	if(retVal >> 7 == 1){
+		CPUINFO.S = 1;
+
+	}else{
+		CPUINFO.S = 0;
+	}
+	if(retVal == 0){
+		CPUINFO.Z = 1;
+	}else{
+		CPUINFO.Z = 0;
+	}
+
+	return retVal;
+	
+}
+
 int
 decode_execute (op * operation)
 {
@@ -456,13 +504,13 @@ decode_execute (op * operation)
     case 0x84:
     case 0x80:
       //ADD r
-      CPUINFO.A += regVal(operation->op & 7); 
+      CPUINFO.A = addReg(A,regVal(operation->op & 7)); 
       CPUINFO.PC++;
       break;
     case 0x86:
       //ADD M
-      loc = CPUINFO.H << 4 | CPUINFO.L;
-      CPUINFO.A += MEM(loc);
+      loc = (CPUINFO.H << 4) | CPUINFO.L;
+      CPUINFO.A = addReg(A,MEM(loc));
       CPUINFO.PC++;
       //The content of the memory at the HL address is added to the
       //accumulator (register A).
