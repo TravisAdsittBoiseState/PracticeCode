@@ -57,11 +57,17 @@ typedef struct op_def
   unsigned char byte2;
 } op;
 
-enum REG{B,C,D,E,H,L,A = 7};
+enum REG
+{ B, C, D, E, H, L, A = 7 };
 
 void loadProgram (char *filename, char **memSpace);
 op *fetch (unsigned int PC);
-
+unsigned char addReg (unsigned char reg, int val);
+unsigned char subReg (unsigned char reg, int val);
+unsigned char regVal (unsigned char reg);
+void loadRegister (unsigned char reg, unsigned char val);
+unsigned char subReg (unsigned char reg, int val);
+void printCPUStatus ();
 unsigned char *memory;
 
 int
@@ -70,7 +76,7 @@ main (int argc, char **arggv)
 
   //Allocate maximum memory possible for 8080 Processor due to its
   //16 bit addressing.
-  memory = malloc (sizeof(unsigned char) * MAX_MEM_LOC);
+  memory = malloc (sizeof (unsigned char) * MAX_MEM_LOC);
 
   if (argc < 1)
     {
@@ -79,36 +85,114 @@ main (int argc, char **arggv)
     }
 
   //loadProgram (arggv[1], &memory);
-  FILE *f = fopen(arggv[1], "rb");
-	
-	if(f == NULL){
-		printf("Couldn't open the file specified!\n");
-		exit(1);
-	}
-	
-	fseek(f,0L,SEEK_END);
+  /*FILE *f = fopen(arggv[1], "rb");
 
-	int size = ftell(f);
-	
-	fseek(f,0,SEEK_SET);
+     if(f == NULL){
+     printf("Couldn't open the file specified!\n");
+     exit(1);
+     }
 
-	fread(memory,size,1,f);
+     fseek(f,0L,SEEK_END);
 
-	fclose(f);
+     int size = ftell(f);
 
+     fseek(f,0,SEEK_SET);
 
+     fread(memory,size,1,f);
+
+     fclose(f);
 
 
-  while (1)
+
+
+     while (1)
+     {
+     op* operation = fetch (CPUINFO.PC);
+     decode_execute (operation);
+
+     }
+   */
+
+  //Testing functions
+
+  int in = 1;
+  printf ("Setting register A to 0\n");
+  loadRegister (A, 0);
+
+  printCPUStatus ();
+
+  while (in > 0)
     {
-      op* operation = fetch (CPUINFO.PC);
-      decode_execute (operation);
+
+      printf ("Enter an int to add to register A...\n");
+      scanf ("%d", &in);
+      CPUINFO.A = addReg (A, in);
+      printCPUStatus ();
+
+
+
+    }
+  in = 1;
+  while (in > 0)
+    {
+
+      printf ("Enter an int to sub to register A...\n");
+      scanf ("%d", &in);
+      CPUINFO.A = subReg (A, in);
+      printCPUStatus ();
+
+
 
     }
 
   return 0;
 }
 
+void
+printCPUStatus ()
+{
+
+  int i = 0;
+
+  printf ("Registers A-L values:\n");
+  for (i = 0; i < 8; i++)
+    {
+
+      if (i != 6)
+	{
+	  printf ("%d\n", regVal (i));
+	}
+
+    }
+
+  printf ("Flag Z : %d\n", CPUINFO.Z);
+  printf ("Flag S : %d\n", CPUINFO.S);
+  printf ("Flag P : %d\n", CPUINFO.P);
+  printf ("Flag CY : %d\n", CPUINFO.CY);
+  printf ("Flag AC : %d\n", CPUINFO.AC);
+
+
+
+}
+
+void
+setParity (unsigned char val)
+{
+
+  unsigned char valI = val;
+  unsigned int count;
+
+  while (valI > 0)
+    {
+
+      if ((valI & 1) > 0)
+	count++;
+      valI = valI >> 1;
+
+    }
+
+  CPUINFO.P = count % 2;
+}
 
 /*
  * This is a helper function built to load a file into the memory space
@@ -127,10 +211,10 @@ loadProgram (char *filename, char **memSpace)
     }
 
   fseek (f, 0L, SEEK_END);
-  
+
   int size = ftell (f);
-  
-  rewind(f);
+
+  rewind (f);
 
 
   fread (*memSpace, size, 1, f);
@@ -140,8 +224,9 @@ loadProgram (char *filename, char **memSpace)
 }
 
 unsigned char
-MEM(unsigned int loc){
-	return memory[loc];
+MEM (unsigned int loc)
+{
+  return memory[loc];
 }
 
 op *
@@ -158,264 +243,418 @@ fetch (unsigned int PC)
 }
 
 void
-loadRegister(unsigned char reg, unsigned char val){
+loadRegister (unsigned char reg, unsigned char val)
+{
 
-	switch(reg){
+  switch (reg)
+    {
 
-		case 0x07:
-			CPUINFO.A = val;
-		case 0x00:
-			CPUINFO.B = val;
-		case 0x01:
-			CPUINFO.C = val;
-		case 0x02:
-			CPUINFO.D = val;
-		case 0x03:
-			CPUINFO.E = val;
-		case 0x04:
-			CPUINFO.H = val;
-		case 0x05:
-			CPUINFO.L = val;
-	}
+    case 0x07:
+      CPUINFO.A = val;
+    case 0x00:
+      CPUINFO.B = val;
+    case 0x01:
+      CPUINFO.C = val;
+    case 0x02:
+      CPUINFO.D = val;
+    case 0x03:
+      CPUINFO.E = val;
+    case 0x04:
+      CPUINFO.H = val;
+    case 0x05:
+      CPUINFO.L = val;
+    }
 }
 
 void
-loadMemory(unsigned char reg, unsigned int loc){
+loadMemory (unsigned char reg, unsigned int loc)
+{
 
-	switch(reg){
+  switch (reg)
+    {
 
-		case 0x07:
-			memory[loc] = CPUINFO.A;
-		case 0x00:
-			memory[loc] = CPUINFO.B;
-		case 0x01:
-			memory[loc] = CPUINFO.C;
-		case 0x02:
-			memory[loc] = CPUINFO.D;
-		case 0x03:
-			memory[loc] = CPUINFO.E;
-		case 0x04:
-			memory[loc] = CPUINFO.H;
-		case 0x05:
-			memory[loc] = CPUINFO.L;
-	}
+    case 0x07:
+      memory[loc] = CPUINFO.A;
+    case 0x00:
+      memory[loc] = CPUINFO.B;
+    case 0x01:
+      memory[loc] = CPUINFO.C;
+    case 0x02:
+      memory[loc] = CPUINFO.D;
+    case 0x03:
+      memory[loc] = CPUINFO.E;
+    case 0x04:
+      memory[loc] = CPUINFO.H;
+    case 0x05:
+      memory[loc] = CPUINFO.L;
+    }
 }
 
-unsigned char 
-regVal(unsigned char reg){
+unsigned char
+regVal (unsigned char reg)
+{
 
-	switch(reg){
+  switch (reg)
+    {
 
-		case 0x07:
-			return CPUINFO.A;
-		case 0x00:
-			return CPUINFO.B;
-		case 0x01:
-			return CPUINFO.C;
-		case 0x02:
-			return CPUINFO.D;
-		case 0x03:
-			return CPUINFO.E;
-		case 0x04:
-			return CPUINFO.H;
-		case 0x05:
-			return CPUINFO.L;
-	}
+    case 0x07:
+      return CPUINFO.A;
+    case 0x00:
+      return CPUINFO.B;
+    case 0x01:
+      return CPUINFO.C;
+    case 0x02:
+      return CPUINFO.D;
+    case 0x03:
+      return CPUINFO.E;
+    case 0x04:
+      return CPUINFO.H;
+    case 0x05:
+      return CPUINFO.L;
+    }
 
 
 }
 
 unsigned int
-regPairVal(unsigned char rp)
+regPairVal (unsigned char rp)
 {
 
-	unsigned int retVal;
+  unsigned int retVal;
 
-	switch(rp){
-		case 0x00:
-			retVal = CPUINFO.B << 4 | CPUINFO.C;
-			break;
-		case 0x01:
-			retVal = CPUINFO.D << 4 | CPUINFO.E;
-			break;
-		case 0x02:
-			retVal = CPUINFO.H << 4 | CPUINFO.L;
-			break;
-		case 0x03:
-			retVal = CPUINFO.SP;
-			break;
-	}
+  switch (rp)
+    {
+    case 0x00:
+      retVal = CPUINFO.B << 8 | CPUINFO.C;
+      break;
+    case 0x01:
+      retVal = CPUINFO.D << 8 | CPUINFO.E;
+      break;
+    case 0x02:
+      retVal = CPUINFO.H << 8 | CPUINFO.L;
+      break;
+    case 0x03:
+      retVal = CPUINFO.SP;
+      break;
+    }
 
-	return retVal;
+  return retVal;
 }
 
-void 
-loadRegPair(unsigned char rp, unsigned int val){
+void
+loadRegPair (unsigned char rp, unsigned int val)
+{
 
-	unsigned char high = val >> 4;
-	unsigned char low = val & 0x0f;
+  unsigned char high = val >> 8;
+  unsigned char low = val & 0xff;
 
-	switch(rp){
-		case 0x00:
-			CPUINFO.B = high;
-			CPUINFO.C = low;
-			break;
-		case 0x01:
-			CPUINFO.D = high;
-			CPUINFO.E = low;
-			break;
-		case 0x02:
-			CPUINFO.H = high;
-			CPUINFO.L = low;
-			break;
-		case 0x03:
-			CPUINFO.SP = val;
-			break;
-	}
+  switch (rp)
+    {
+    case 0x00:
+      CPUINFO.B = high;
+      CPUINFO.C = low;
+      break;
+    case 0x01:
+      CPUINFO.D = high;
+      CPUINFO.E = low;
+      break;
+    case 0x02:
+      CPUINFO.H = high;
+      CPUINFO.L = low;
+      break;
+    case 0x03:
+      CPUINFO.SP = val;
+      break;
+    }
 
 
 }
 
 void
-regToReg(unsigned char r1, unsigned char r2){
+regToReg (unsigned char r1, unsigned char r2)
+{
 
-	switch(r1){
+  switch (r1)
+    {
 
-		case 0x07:
-			CPUINFO.A = regVal(r2);
-		case 0x00:
-			CPUINFO.B = regVal(r2);
-		case 0x01:
-			CPUINFO.C = regVal(r2);
-		case 0x02:
-			CPUINFO.C = regVal(r2);
-		case 0x03:
-			CPUINFO.E = regVal(r2);
-		case 0x04:
-			CPUINFO.H = regVal(r2);
-		case 0x05:
-			CPUINFO.L = regVal(r2);
-	}
+    case 0x07:
+      CPUINFO.A = regVal (r2);
+    case 0x00:
+      CPUINFO.B = regVal (r2);
+    case 0x01:
+      CPUINFO.C = regVal (r2);
+    case 0x02:
+      CPUINFO.C = regVal (r2);
+    case 0x03:
+      CPUINFO.E = regVal (r2);
+    case 0x04:
+      CPUINFO.H = regVal (r2);
+    case 0x05:
+      CPUINFO.L = regVal (r2);
+    }
 
 }
 
 int
-MOV(op* operation){
+MOV (op * operation)
+{
 
-	unsigned char mask = 0x07;
-	unsigned char op = operation->op;
-	unsigned char SSS = op & mask;
-	unsigned char DDD = ((op & ~mask) >> 3) & mask;
-	
-	if(op & mask == 6){
-		op = (op & (mask << 3)) >> 3;
-		loadRegister(op,MEM((CPUINFO.H << 4) | CPUINFO.L));
-	}else if(op & ~(mask) == 112){
-		op = (op & mask);
-		loadMemory(op, (CPUINFO.H << 4) | CPUINFO.L);
-	}else{
-		regToReg(DDD,SSS);
-	}
+  unsigned char mask = 0x07;
+  unsigned char op = operation->op;
+  unsigned char SSS = op & mask;
+  unsigned char DDD = ((op & ~mask) >> 3) & mask;
 
-}
-
-void
-LXI(op* operation){
-
-	unsigned char rp = (operation->op >> 4) & 3;
-
-	switch(rp){
-
-		case 0x00:
-			CPUINFO.B = operation->byte2;
-			CPUINFO.C = operation->byte1;
-		case 0x01:
-			CPUINFO.D = operation->byte2;
-			CPUINFO.E = operation->byte1;
-		case 0x02:
-			CPUINFO.H = operation->byte2;
-			CPUINFO.L = operation->byte1;
-		case 0x03:
-			CPUINFO.SP = (operation->byte2 << 4) | operation->byte1;
-	}
+  if (op & mask == 6)
+    {
+      op = (op & (mask << 3)) >> 3;
+      loadRegister (op, MEM ((CPUINFO.H << 8) | CPUINFO.L));
+    }
+  else if (op & ~(mask) == 112)
+    {
+      op = (op & mask);
+      loadMemory (op, (CPUINFO.H << 8) | CPUINFO.L);
+    }
+  else
+    {
+      regToReg (DDD, SSS);
+    }
 
 }
 
 void
-AX(op* operation){
+LXI (op * operation)
+{
 
-	unsigned char op = operation->op & 0x0f;
-	unsigned char rp = (operation->op >> 4) & 3;
-	unsigned int loc;
+  unsigned char rp = (operation->op >> 4) & 3;
 
-	switch(rp){
-		case 0x00:
-			loc = CPUINFO.B << 4 | CPUINFO.C;
-			break;
-		case 0x01:
-			loc = CPUINFO.D << 4 | CPUINFO.E;
-			break;
-	}
+  switch (rp)
+    {
 
-	switch(op){
-		case 0x0a:
-			//LDAX
-			loadRegister(A,MEM(loc));
-			break;
-		case 0x02:
-			//STAX
-			loadMemory(A,loc);
-			break;
-	}
+    case 0x00:
+      CPUINFO.B = operation->byte2;
+      CPUINFO.C = operation->byte1;
+    case 0x01:
+      CPUINFO.D = operation->byte2;
+      CPUINFO.E = operation->byte1;
+    case 0x02:
+      CPUINFO.H = operation->byte2;
+      CPUINFO.L = operation->byte1;
+    case 0x03:
+      CPUINFO.SP = (operation->byte2 << 8) | operation->byte1;
+    }
+
+}
+
+void
+AX (op * operation)
+{
+
+  unsigned char op = operation->op & 0x0f;
+  unsigned char rp = (operation->op >> 4) & 3;
+  unsigned int loc;
+
+  switch (rp)
+    {
+    case 0x00:
+      loc = CPUINFO.B << 8 | CPUINFO.C;
+      break;
+    case 0x01:
+      loc = CPUINFO.D << 8 | CPUINFO.E;
+      break;
+    }
+
+  switch (op)
+    {
+    case 0x0a:
+      //LDAX
+      loadRegister (A, MEM (loc));
+      break;
+    case 0x02:
+      //STAX
+      loadMemory (A, loc);
+      break;
+    }
 
 }
 
 unsigned char
-addReg(unsigned char reg, int val){
+subReg (unsigned char reg, int val)
+{
 
-	//We look at the 6th bit to see if it was carried into the 7th bit
-	//after addition.
-	int carry = (reg >> 6) & 0x01;
-	int carryA;
+  unsigned char retVal;
 
-	int auxC = (reg >> 2) & 0x01;
-	int auxCA;
-	
+  retVal = regVal (reg) - val;
 
-	int retVal;
+  if (regVal (reg) < val)
+    {
+      CPUINFO.CY = 1;		//Not sure if I should correct the bit
+      //or not...
+    }
+  else
+    {
+      CPUINFO.CY = 0;
+    }
+  //Making an assumption here that the auxiliary carry bit 
+  //behaves the same way as the carry bit just on the lower
+  //four bits.
+  if ((regVal (reg) & 0x0f) < val & 0x0f)
+    {
 
-	retVal = reg + val;
+      CPUINFO.AC = 1;
 
-	carryA = (retVal >> 6) & 0x01;	
-	auxCA = (retVal >> 2) & 0x01;
+    }
+  else
+    {
+      CPUINFO.AC = 0;
+    }
 
-	if(carry > carryA){
-		CPUINFO.CY = 1; //Not sure if I should correct the bit
-				//or not...
-	}else{
-		CPUINFO.CY = 0;
+  CPUINFO.S = retVal >> 7;
+
+  if (retVal == 0)
+    {
+      CPUINFO.Z = 1;
+    }
+  else
+    {
+      CPUINFO.Z = 0;
+    }
+
+  setParity (retVal);
+
+  return retVal;
+
+}
+
+unsigned char
+addReg (unsigned char reg, int val)
+{
+
+  //We look at the 6th bit to see if it was carried into the 7th bit
+  //after addition.
+  int carry = (regVal (reg) >> 6) & 0x01;
+  int carryA;
+
+  int auxC = (regVal (reg) >> 2) & 0x01;
+  int auxCA;
+
+
+  unsigned char retVal;
+
+  retVal = regVal (reg) + val;
+
+  carryA = (retVal >> 6) & 0x01;
+  auxCA = (retVal >> 2) & 0x01;
+
+  if (carry > carryA)
+    {
+      CPUINFO.CY = 1;		//Not sure if I should correct the bit
+      //or not...
+    }
+  else
+    {
+      CPUINFO.CY = 0;
+    }
+  if (auxC > auxCA)
+    {
+
+      CPUINFO.AC = 1;
+
+    }
+  else
+    {
+      CPUINFO.AC = 0;
+    }
+  if (retVal >> 7 == 1)
+    {
+      CPUINFO.S = 1;
+
+    }
+  else
+    {
+      CPUINFO.S = 0;
+    }
+  if (retVal == 0)
+    {
+      CPUINFO.Z = 1;
+    }
+  else
+    {
+      CPUINFO.Z = 0;
+    }
+
+  setParity (retVal);
+
+  return retVal;
+
+}
+
+int
+checkCondition(unsigned char cond){
+
+switch(cond){
+
+	case 0:
+		return CPUINFO.Z == 0;
+		break;
+	case 1:
+		return CPUINFO.Z == 1;
+		break;
+	case 2:
+		return CPUINFO.CY == 0;
+		break;
+	case 3:
+		return CPUINFO.CY == 1;
+		break;
+	case 4:
+		return CPUINFO.P == 0;
+		break;
+	case 5:
+		return CPUINFO.P == 1;
+		break;
+	case 6:
+		return CPUINFO.S == 0;
+		break;
+	case 7:
+		return CPUINFO.S == 1;
+		break;
 	}
-	if(auxC > auxCA){
 
-		CPUINFO.AC = 1;
+}
 
-	}else{
-		CPUINFO.AC = 0;
-	}
-	if(retVal >> 7 == 1){
-		CPUINFO.S = 1;
 
-	}else{
-		CPUINFO.S = 0;
-	}
-	if(retVal == 0){
-		CPUINFO.Z = 1;
-	}else{
-		CPUINFO.Z = 0;
-	}
 
-	return retVal;
-	
+void setFlags(unsigned char from, unsigned char to){
+
+  if (to > from)
+    {
+
+      CPUINFO.AC = 1;
+
+    }
+  else
+    {
+      CPUINFO.AC = 0;
+    }
+  if (to >> 7 == 1)
+    {
+      CPUINFO.S = 1;
+
+    }
+  else
+    {
+      CPUINFO.S = 0;
+    }
+  if (to == 0)
+    {
+      CPUINFO.Z = 1;
+    }
+  else
+    {
+      CPUINFO.Z = 0;
+    }
+
+  setParity(to);
+
 }
 
 int
@@ -440,48 +679,48 @@ decode_execute (op * operation)
     case 0x06:
     case 0x16:
       //MVI r, data
-      loadRegister((operation->op >> 3) & 7, operation->byte1);
-      CPUINFO.PC+=2;
+      loadRegister ((operation->op >> 3) & 7, operation->byte1);
+      CPUINFO.PC += 2;
       break;
     case 0x31:
     case 0x21:
     case 0x01:
     case 0x11:
       //LXI rp, data
-      LXI(operation);
-      CPUINFO.PC+=3;
+      LXI (operation);
+      CPUINFO.PC += 3;
       break;
     case 0x3a:
       //LDA addr
       loc = operation->byte2 << 4 | operation->byte1;
-      loadRegister(0x03,MEM(loc));
-      CPUINFO.PC+=3;
+      loadRegister (0x03, MEM (loc));
+      CPUINFO.PC += 3;
       break;
     case 0x32:
       //STA addr
       loc = operation->byte2 << 4 | operation->byte1;
-      loadMemory(0x03,loc);
-      CPUINFO.PC+=3;
+      loadMemory (0x03, loc);
+      CPUINFO.PC += 3;
       break;
     case 0x2a:
       //LHLD addr
       loc = operation->byte2 << 4 | operation->byte1;
-      CPUINFO.H = MEM(loc + 1);
-      CPUINFO.L = MEM(loc);
-      CPUINFO.PC+=3;
+      CPUINFO.H = MEM (loc + 1);
+      CPUINFO.L = MEM (loc);
+      CPUINFO.PC += 3;
       break;
     case 0x22:
       //SHLD addr
       loc = operation->byte2 << 4 | operation->byte1;
-      loadMemory(H, loc);
-      CPUINFO.PC+=3;
+      loadMemory (H, loc);
+      CPUINFO.PC += 3;
       break;
     case 0x1a:
     case 0x0a:
     case 0x12:
     case 0x02:
       //AX rp
-      AX(operation);
+      AX (operation);
       CPUINFO.PC++;
       break;
     case 0xeb:
@@ -504,21 +743,21 @@ decode_execute (op * operation)
     case 0x84:
     case 0x80:
       //ADD r
-      CPUINFO.A = addReg(A,regVal(operation->op & 7)); 
+      CPUINFO.A = addReg (A, regVal (operation->op & 7));
       CPUINFO.PC++;
       break;
     case 0x86:
       //ADD M
       loc = (CPUINFO.H << 4) | CPUINFO.L;
-      CPUINFO.A = addReg(A,MEM(loc));
+      CPUINFO.A = addReg (A, MEM (loc));
       CPUINFO.PC++;
       //The content of the memory at the HL address is added to the
       //accumulator (register A).
       break;
     case 0xc6:
       //ADI data
-      CPUINFO.A += operation->byte1;
-      CPUINFO.PC+=2;
+      CPUINFO.A = addReg(A,operation->byte1);
+      CPUINFO.PC += 2;
       break;
     case 0x8a:
     case 0x8b:
@@ -529,21 +768,21 @@ decode_execute (op * operation)
     case 0x8c:
       //ADC r
       //register A + r + Carry Bit
-      CPUINFO.A += regVal(operation->op & 7) + CPUINFO.CY;
+      CPUINFO.A = addReg(A,regVal (operation->op & 7) + CPUINFO.CY);
       CPUINFO.PC++;
       break;
     case 0x8e:
       //ADC M
       //register A + M(HL) + Carry Bit
       loc = CPUINFO.H << 4 | CPUINFO.L;
-      CPUINFO.A += MEM(loc) + CPUINFO.CY;
+      CPUINFO.A = addReg(A,MEM (loc) + CPUINFO.CY);
       CPUINFO.PC++;
       break;
     case 0xce:
       //ACI data
       //register A + (byte 2) + CY flag
-      CPUINFO.A += operation->byte1 + CPUINFO.CY;
-      CPUINFO.PC+=2;
+      CPUINFO.A = addReg(A,operation->byte1 + CPUINFO.CY);
+      CPUINFO.PC += 2;
       break;
     case 0x92:
     case 0x90:
@@ -553,19 +792,19 @@ decode_execute (op * operation)
     case 0x91:
     case 0x95:
       //SUB r
-      CPUINFO.A -= regVal(operation->op & 7);
+      CPUINFO.A = subReg(A,regVal (operation->op & 7));
       CPUINFO.PC++;
       break;
     case 0x96:
       //SUB M
       loc = CPUINFO.H << 4 | CPUINFO.L;
-      CPUINFO.A -= MEM(loc);
+      CPUINFO.A = subReg(A,MEM (loc));
       CPUINFO.PC++;
       break;
     case 0xd6:
       //SUI data
-      CPUINFO.A -= operation->byte1;
-      CPUINFO.PC+=2;
+      CPUINFO.A = subReg(A,operation->byte1);
+      CPUINFO.PC += 2;
       break;
     case 0x9f:
     case 0x9c:
@@ -575,19 +814,19 @@ decode_execute (op * operation)
     case 0x99:
     case 0x98:
       //SBB r
-      CPUINFO.A -= regVal(operation->op & 7) - CPUINFO.CY;
+      CPUINFO.A = subReg(A,regVal (operation->op & 7) - CPUINFO.CY);
       CPUINFO.PC++;
       break;
     case 0x9e:
       //SBB M
-      loc = CPUINFO.H << 4 | CPUINFO.L;
-      CPUINFO.A -= MEM(loc) - CPUINFO.CY;
+      loc = CPUINFO.H << 8 | CPUINFO.L;
+      CPUINFO.A = subReg(A,MEM (loc) - CPUINFO.CY);
       CPUINFO.PC++;
       break;
     case 0xde:
       //SBI data
-      CPUINFO.A -= operation->byte1;
-      CPUINFO.PC+=2;
+      CPUINFO.A = subReg(A,operation->byte1);
+      CPUINFO.PC += 2;
       break;
     case 0x1c:
     case 0x14:
@@ -598,13 +837,15 @@ decode_execute (op * operation)
     case 0x2c:
       //INR r
       loc = operation->op >> 3 & 7;
-      loadRegister(loc,regVal(loc) + 1);
+      loadRegister (loc, addReg(loc,1));
       CPUINFO.PC++;
       break;
     case 0x34:
       //INR M
-      loc = CPUINFO.H << 4 | CPUINFO.L;
-      memory[loc]++;
+      loc = CPUINFO.H << 8 | CPUINFO.L;
+      loc = memory[loc];
+      setFlags(loc, loc + 1);
+      memory[CPUINFO.H << 8 | CPUINFO.L]++;
       CPUINFO.PC++;
       break;
     case 0x05:
@@ -616,13 +857,15 @@ decode_execute (op * operation)
     case 0x15:
       //DCR r
       loc = operation->op >> 3 & 7;
-      loadRegister(loc,regVal(loc) - 1);
+      loadRegister (loc, subReg(loc,1));
       CPUINFO.PC++;
       break;
     case 0x35:
       //DCR M
-      loc = CPUINFO.H << 4 | CPUINFO.L;
-      memory[loc]--;
+      loc = CPUINFO.H << 8 | CPUINFO.L;
+      loc = memory[loc];
+      setFlags(loc, loc + 1);
+      memory[CPUINFO.H << 8 | CPUINFO.L]++;
       CPUINFO.PC++;
       break;
     case 0x03:
@@ -632,7 +875,7 @@ decode_execute (op * operation)
       //INX rp
       //Increment the register pairs lower by one
       loc = operation->op >> 4 & 3;
-      loadRegPair(loc,regPairVal(loc) + 1);
+      loadRegPair (loc, regPairVal (loc) + 1);
       CPUINFO.PC++;
       break;
     case 0x1b:
@@ -641,7 +884,7 @@ decode_execute (op * operation)
     case 0x2b:
       //DCX rp
       loc = operation->op >> 4 & 3;
-      loadRegPair(loc,regPairVal(loc) - 1);
+      loadRegPair (loc, regPairVal (loc) - 1);
       CPUINFO.PC++;
       break;
     case 0x09:
@@ -650,27 +893,25 @@ decode_execute (op * operation)
     case 0x19:
       //DAD rp
       //Adds the register pair to the H and L registers
-      loc = regPairVal(operation->op >> 4 & 3);
-      loc += regPairVal(H);
-      loadRegPair(H,loc);
+      loc = regPairVal (operation->op >> 4 & 3);
+      loc += regPairVal (H);
+      CPUINFO.CY = (regPairVal (operation->op >> 4 & 3) >> 6 & 1) > 
+	(((regPairVal (operation->op >> 4 & 3) >> 6 & 1) + regPairVal(H)) >> 6 & 1); 
+      loadRegPair (H, loc);
       CPUINFO.PC++;
       break;
     case 0x27:
       //DAA
       //Forms two four bit Binary Coded Decimal digits from the
       //Accumulator (Register A)
-      if((CPUINFO.A & 0x0f > 9) || CPUINFO.AC){
-
-	CPUINFO.A += 6;
-
-      }
-      if((CPUINFO.A & 0xf0 >> 4 > 9) || CPUINFO.CY){
-
-	loc = CPUINFO.A >> 4 & 0x0f;
-	loc += 6;
-	CPUINFO.A = (loc << 4) | (CPUINFO.A & 0x0f);
-
-      }
+      if ((CPUINFO.A & 0x0f > 9) || CPUINFO.AC)
+	{
+	  CPUINFO.A = addReg(A,6);
+	}
+      if ((CPUINFO.A & 0xf0 >> 4 > 9) || CPUINFO.CY)
+	{
+	  CPUINFO.A = addReg(A,0x60);
+	}
       CPUINFO.PC++;
       break;
     case 0xa7:
@@ -681,18 +922,21 @@ decode_execute (op * operation)
     case 0xa3:
     case 0xa2:
       //ANA r
-      CPUINFO.A = CPUINFO.A & regVal(operation->op & 7);
+      setFlags(CPUINFO.A,CPUINFO.A & regVal(operation->op & 7));
+      CPUINFO.A = CPUINFO.A & regVal (operation->op & 7);
       CPUINFO.PC++;
       break;
     case 0xa6:
       //ANA M
-      CPUINFO.A = CPUINFO.A & MEM(regPairVal(H));
+      setFlags(CPUINFO.A,CPUINFO.A & MEM(regPairVal(H)));
+      CPUINFO.A = CPUINFO.A & MEM (regPairVal (H));
       CPUINFO.PC++;
       break;
     case 0xe6:
       //ANI data
+      setFlags(CPUINFO.A,CPUINFO.A & operation->byte1);
       CPUINFO.A = CPUINFO.A & operation->byte1;
-      CPUINFO.PC+=2;
+      CPUINFO.PC += 2;
       break;
     case 0xac:
     case 0xad:
@@ -702,18 +946,21 @@ decode_execute (op * operation)
     case 0xab:
     case 0xa9:
       //XRA r
-      CPUINFO.A = CPUINFO.A ^ regVal(operation->op & 7);
+      setFlags(CPUINFO.A,CPUINFO.A ^ regVal(operation->op & 7));
+      CPUINFO.A = CPUINFO.A ^ regVal (operation->op & 7);
       CPUINFO.PC++;
       break;
     case 0xae:
       //XRA M
-      CPUINFO.A = CPUINFO.A ^ MEM(regPairVal(H));
+      setFlags(CPUINFO.A,CPUINFO.A ^ MEM(regPairVal(H)));
+      CPUINFO.A = CPUINFO.A ^ MEM (regPairVal (H));
       CPUINFO.PC++;
       break;
     case 0xee:
       //XRI data
+      setFlags(CPUINFO.A,CPUINFO.A ^ operation->byte1);
       CPUINFO.A = CPUINFO.A ^ operation->byte1;
-      CPUINFO.PC+=2;
+      CPUINFO.PC += 2;
       break;
     case 0xb1:
     case 0xb0:
@@ -723,18 +970,21 @@ decode_execute (op * operation)
     case 0xb2:
     case 0xb5:
       //ORA r
-      CPUINFO.A = CPUINFO.A | regVal(operation->op & 7);
+      setFlags(CPUINFO.A,CPUINFO.A | regVal(operation->op & 7));
+      CPUINFO.A = CPUINFO.A | regVal (operation->op & 7);
       CPUINFO.PC++;
       break;
     case 0xb6:
       //ORA M
-      CPUINFO.A = CPUINFO.A | MEM(regPairVal(H));
+      setFlags(CPUINFO.A,CPUINFO.A | MEM(regPairVal(H)));
+      CPUINFO.A = CPUINFO.A | MEM (regPairVal (H));
       CPUINFO.PC++;
       break;
     case 0xf6:
       //ORI data
+      setFlags(CPUINFO.A,CPUINFO.A | operation->byte1);
       CPUINFO.A = CPUINFO.A | operation->byte1;
-      CPUINFO.PC+=2;
+      CPUINFO.PC += 2;
       break;
     case 0xbc:
     case 0xbb:
@@ -744,39 +994,71 @@ decode_execute (op * operation)
     case 0xbf:
     case 0xba:
       //CMP r
+      subReg(A,regVal(operation->op & 7));
+      CPUINFO.PC++;
       break;
     case 0xbe:
       //CMP M
+      subReg(A,regPairVal(H));
+      CPUINFO.PC++;
       break;
     case 0xfe:
       //CPI data
+      subReg(A,operation->byte1);
+      CPUINFO.PC+=2;
       break;
     case 0x07:
       //RLC
+      loc = CPUINFO.A >> 7;
+      CPUINFO.CY = loc;
+      CPUINFO.A = (CPUINFO.A << 1) | loc;
+      CPUINFO.PC++;
       break;
     case 0x0f:
       //RRC
+      loc = CPUINFO.A & 1;
+      CPUINFO.CY = loc;
+      CPUINFO.A = (CPUINFO.A >> 1) | loc << 7;
+      CPUINFO.PC++;
       break;
     case 0x17:
       //RAL
+      loc = CPUINFO.A >> 7;
+      CPUINFO.A = CPUINFO.A << 1 | CPUINFO.CY;
+      CPUINFO.CY = loc;
+      CPUINFO.PC++;
       break;
     case 0x1f:
       //RAR
+      loc = CPUINFO.A & 1;
+      CPUINFO.A = CPUINFO.A >> 1 | CPUINFO.CY << 7;
+      CPUINFO.CY = loc;
+      CPUINFO.PC++;
       break;
     case 0x2f:
       //CMA
+      CPUINFO.A = ~(CPUINFO.A);
+      CPUINFO.PC++;
       break;
     case 0x3f:
       //CMC
+      CPUINFO.CY = ~CPUINFO.CY;
+      CPUINFO.PC++;
       break;
     case 0x37:
       //STC
+      CPUINFO.CY = 1;
+      CPUINFO.PC++;
       break;
     case 0x36:
-      //MVI ADDR (H and L), r 
+      //MVI ADDR (H and L), r
+      loc = regPairVal(H);
+      memory[loc] = operation->byte1;
+      CPUINFO.PC+=2;
       break;
     case 0xc3:
       //JMP
+      CPUINFO.PC = operation->byte2 << 8 | operation->byte1;
       break;
     case 0xda:
     case 0xe2:
@@ -787,9 +1069,18 @@ decode_execute (op * operation)
     case 0xfa:
     case 0xca:
       //JMPCON
+      if(checkCondition(operation->op >> 3 & 7)){
+  	  CPUINFO.PC = operation->byte2 << 8 | operation->byte1;
+      }else{
+	  CPUINFO.PC += 3;
+      }
       break;
     case 0xcd:
       //CALL addr
+      memory[CPUINFO.SP - 1] = CPUINFO.PC >> 8; //Subtracting one because we are cheating
+      memory[CPUINFO.SP - 2] = CPUINFO.PC & 0xff;
+      CPUINFO.PC = regPairVal(H);          //with 16 bit register.
+      CPUINFO.SP = CPUINFO.SP - 2;
       break;
     case 0xd4:
     case 0xec:
@@ -803,10 +1094,20 @@ decode_execute (op * operation)
       //It seems this pushes the PC onto the stack and places
       //the address of the following bytes into the PC if the
       //condition is true.
+      if(checkCondition(operation->op >> 3 & 7)){
+	  memory[CPUINFO.SP - 1] = CPUINFO.PC >> 8;
+	  memory[CPUINFO.SP - 2] = CPUINFO.PC & 0xff;
+	  CPUINFO.PC = regPairVal(H);
+          CPUINFO.SP = CPUINFO.SP - 2;
+      }else{
+	  CPUINFO.PC++;
+      }
       break;
     case 0xc9:
       //RET
       //Pulls an address off the stack and puts it in the PC
+      CPUINFO.PC = memory[CPUINFO.SP] << 8 | memory[CPUINFO.SP + 1];
+      CPUINFO.SP = CPUINFO.SP + 2;
       break;
     case 0xe8:
     case 0xf8:
@@ -817,6 +1118,12 @@ decode_execute (op * operation)
     case 0xc0:
     case 0xd0:
       //Rcondition
+      if(checkCondition(operation->op >> 3 & 7)){
+	  CPUINFO.PC = memory[CPUINFO.SP] << 8 | memory[CPUINFO.SP + 1];
+          CPUINFO.SP = CPUINFO.SP + 2;
+      }else{
+	  CPUINFO.PC++;
+      }
       break;
     case 0xef:
     case 0xf7:
@@ -835,30 +1142,68 @@ decode_execute (op * operation)
       //multiplies it by 8 and puts that into the PC. I 
       //had no idea this is what a soft reset did... seems
       //like its not much of a reset at all....
+      memory[CPUINFO.SP - 1] = CPUINFO.PC >> 8; //Subtracting one because we are cheating
+      memory[CPUINFO.SP - 2] = CPUINFO.PC & 0xff;
+      CPUINFO.SP = CPUINFO.SP - 2;
+      CPUINFO.PC = ((operation->op >> 3) & 7) * 8;
       break;
     case 0xe9:
+      //PCHL
+      CPUINFO.PC = regPairVal(H);
       break;
     case 0xe5:
     case 0xd5:
     case 0xc5:
       //PUSH rp
+      loc = regPairVal((operation->op >> 4) & 3);
+      memory[CPUINFO.SP - 1] = loc >> 8;
+      memory[CPUINFO.SP - 2] = loc & 0xff;
+      CPUINFO.SP -= 2;
       break;
     case 0xf5:
       //PUSH PSW
+      memory[CPUINFO.SP - 1] = CPUINFO.A;
+      loc = 0;
+      loc = loc | CPUINFO.CY;
+      loc = loc | 1 << 1;
+      loc = loc | CPUINFO.P << 2;
+      loc = loc | CPUINFO.AC << 4;
+      loc = loc | CPUINFO.Z << 6;
+      loc = loc | CPUINFO.S << 7;
+      memory[CPUINFO.SP - 2] = loc;
+      CPUINFO.SP -= 2;
+      CPUINFO.PC++;  
       break;
     case 0xc1:
     case 0xd1:
     case 0xe1:
       //POP rp
+      loc = memory[CPUINFO.SP + 1] << 8 | memory[CPUINFO.SP];
+      loadRegPair((operation->op >> 4 & 3), loc);
+      CPUINFO.SP += 2;
       break;
     case 0xf1:
       //POP PSW
+      CPUINFO.A = memory[CPUINFO.SP + 1];
+      loc = memory[CPUINFO.SP];
+      CPUINFO.CY = loc & 1;
+      CPUINFO.P = loc >> 2 & 1;
+      CPUINFO.AC = loc >> 4 & 1;
+      CPUINFO.Z = loc >> 6 & 1;
+      CPUINFO.S = loc >> 7 & 1;
+      CPUINFO.SP += 2;
       break;
     case 0xe3:
       //XTHL Exchange stack top with H and L
+      loc = regPairVal(H);
+      CPUINFO.H = memory[CPUINFO.SP + 1];
+      CPUINFO.L = memory[CPUINFO.SP];
+      memory[CPUINFO.SP] = loc & 0xff;
+      memory[CPUINFO.SP + 1] = loc >> 8;
       break;
     case 0xf9:
       //SPHL Stack fills H and L
+      CPUINFO.PC = regPairVal(H);
       break;
     case 0xdb:
       //IN port
@@ -939,7 +1284,7 @@ decode_execute (op * operation)
     case 0x46:
     case 0x5e:
       CPUINFO.PC++;
-      MOV(operation);
+      MOV (operation);
       break;
     }
 
