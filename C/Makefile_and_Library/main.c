@@ -38,8 +38,9 @@ int main(int argc,char**args){
 	found = 0;
 
 	//This is an implementation of the Rabin-Karp substring search
-	//which runs in O(n) time.
-	while(!found){
+	//which runs in O(n) time. Commented out because hash function
+	//in the library prevents this from running at that speed.
+	/*while(!found){
 		temp = hash(&sentence[index],strLen);
 		if(hash(&sentence[index],strLen) == hashVal){
 			for(temp = 0; temp < strLen; temp++){
@@ -51,6 +52,27 @@ int main(int argc,char**args){
 	
 		index++;
 
+	}*/
+
+	temp = hash(&sentence[index],strLen);//Initial hash
+	//Because of the way the hash works we add the next character
+	//too the hash and subtract the first character to move down
+	//the sentence.
+	while(!found){
+	
+		if(temp == hashVal){
+			for(cont = 0; cont < strLen; cont++){
+                                if(sentence[index + temp] != searchFor[temp]) break;
+                        }
+			if(cont == strLen) found = 1;
+		}	
+
+		temp -= sentence[index];
+		temp += sentence[index + strLen];
+
+		if(sentence[index + strLen] == '\n' && !found) break;
+
+		index++;
 	}
 
 	free(sentence);
