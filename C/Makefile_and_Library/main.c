@@ -18,7 +18,6 @@ int main(int argc,char**args){
 
 	char* sentence = malloc(100 * sizeof(char));
 	char* searchFor = malloc(10 * sizeof(char));
-	char* currSearch = malloc(10 * sizeof(char));;
 	int hashVal, strLen, index, found, temp, cont;
 
 
@@ -27,13 +26,13 @@ int main(int argc,char**args){
 
 	printf("Type a sub-string to search for:\n");
 	fgets(searchFor,10,stdin);
-
-	hashVal = hash(searchFor);
 	
 	strLen = 0;
-	
+
 	while(searchFor[strLen++] != '\n'){};
-	strLen--;
+	strLen--; //This discludes the \n for hashing purposes
+
+	hashVal = hash(searchFor, strLen);
 
 	index = 0;
 	found = 0;
@@ -41,20 +40,14 @@ int main(int argc,char**args){
 	//This is an implementation of the Rabin-Karp substring search
 	//which runs in O(n) time.
 	while(!found){
-		if(sentence[index + strLen - 1] == '\n') break;
-
-		for(temp = 0; temp < strLen; temp++){
-			currSearch[temp] = sentence[index + temp];
-		}
-
-		currSearch[temp + 1] = '\n';
-
-		if(hash(currSearch) == hashVal){
+		temp = hash(&sentence[index],strLen);
+		if(hash(&sentence[index],strLen) == hashVal){
 			for(temp = 0; temp < strLen; temp++){
-				if(currSearch[temp] != searchFor[temp]) break;
+				if(sentence[index + temp] != searchFor[temp]) break;
 			}
 			if(temp == strLen) found = 1;
 		}
+		if(sentence[index + strLen] == '\n' && !found) break;
 	
 		index++;
 
@@ -62,7 +55,6 @@ int main(int argc,char**args){
 
 	free(sentence);
 	free(searchFor);
-	free(currSearch);
 
 	printf("The sub-string %s in the string!\n",found?"was":"wasn't");
 

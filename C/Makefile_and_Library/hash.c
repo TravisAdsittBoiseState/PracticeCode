@@ -11,12 +11,12 @@
 /*
  * A hash function that is the character's ASCII values added up.
  */
-unsigned int hash(char* string){
+unsigned int hash(char* string, int len){
 
 	unsigned int hashVal = 0;
 	int index = 0;
 
-	while(string[index] != '\n'){
+	while(index < len){
 
 		hashVal += string[index++];
 	
